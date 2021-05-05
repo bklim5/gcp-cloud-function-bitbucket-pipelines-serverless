@@ -1,0 +1,35 @@
+image: nikolaik/python-nodejs:latest
+
+stepdefinitions:
+  - lintingtesting: &lintingtesting
+      name: "Run lint & test"
+      script:
+        - make install-dev
+        - make linttest
+        - make coverage
+
+pipelines:
+  default:
+    - step: *lintingtesting
+
+  branches:
+    development:
+      - step: *lintingtesting
+      - step:
+          name: "Deploy to dev cloud function"
+          deployment: test
+          script:
+            - npm install -g serverless
+            - npm install
+            - echo ${DEV_GCP_KEYFILE} | base64 --decode > temp_keyfile.json
+            - serverless deploy --ENVIRONMENT_NAME dev --KEYFILE temp_keyfile.json --PROJECT ${DEV_GCP_PROJECT}  # Project can be retrieved from custom variable in serverless.yml as well
+    master:
+      - step: *lintingtesting
+      - step:
+          name: "Deploy to prod cloud function"
+          deployment: production
+          script:
+            - npm install -g serverless
+            - npm install
+            - echo ${PROD_GCP_KEYFILE} | base64 --decode > temp_keyfile.json
+            - serverless deploy --ENVIRONMENT_NAME prod --KEYFILE temp_keyfile.json --PROJECT ${PROD_GCP_PROJECT}
